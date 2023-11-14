@@ -1,4 +1,4 @@
-# VERSION 5 - 13/11/2023
+# VERSION 5 - 14/11/2023
 # Cette application PyQt permet de comparer le contenu de deux fichiers PDF sélectionnés par l'utilisateur. Elle affiche les différences entre les
 # fichiers ligne par ligne dans un tableau et met en évidence les modifications avec des couleurs. 
 # Rouge : suppression
@@ -8,6 +8,7 @@
 
 # Amélioration en cours : 
 # Lien avec les annotations - EN COURS => format liste
+# Suppression et Ajout de fonds : possible - Pas Commencé
 
 import sys
 import PyPDF2
@@ -48,6 +49,7 @@ import difflib
 
 class PDFComparerApp(QMainWindow):
     current_difference_index = 0
+    current_result_index = 0
     
     def __init__(self):
         super().__init__(None)
@@ -57,7 +59,7 @@ class PDFComparerApp(QMainWindow):
     def initUI(self):
         self.setWindowTitle("PDF Compare & Verify - Version 5")
         self.resize(1200, 500)
-
+    
         self.setWindowIcon(QIcon('comparer.png'))
     
         # QSplitter pour diviser la fenêtre en deux parties redimensionnables
@@ -96,53 +98,70 @@ class PDFComparerApp(QMainWindow):
         self.table = QTableWidget()
         left_layout.addWidget(self.table)
     
-        button_layout = QHBoxLayout()
-    
-        self.previous_diff_button = QPushButton("Différence précédente")
-        self.previous_diff_button.clicked.connect(self.showPreviousDifference)
-        self.next_diff_button = QPushButton("Différence suivante")
-        self.next_diff_button.clicked.connect(self.showNextDifference)
+        button_layout_top = QHBoxLayout()
 
         help_button = QPushButton("?")
         help_button.setMaximumWidth(25)
         help_button.clicked.connect(self.showInstructions)
-        button_layout.addWidget(help_button, alignment=Qt.AlignLeft)
         export_button = QPushButton("Exporter vers Excel")
         export_button.clicked.connect(self.exportToExcel)
-        button_layout.addWidget(export_button)
-
-        # Modifiez ces lignes dans la fonction initUI de votre classe PDFComparerApp
+        button_layout_top.addWidget(help_button, alignment=Qt.AlignLeft)
+        button_layout_top.addWidget(export_button)
+        
+        button_layout_top.addStretch(1)
+        
+        self.previous_diff_button = QPushButton("Différence précédente")
+        self.previous_diff_button.clicked.connect(self.showPreviousDifference)
+        self.next_diff_button = QPushButton("Différence suivante")
+        self.next_diff_button.clicked.connect(self.showNextDifference)
+        
+        button_layout_top.addWidget(self.previous_diff_button)
+        button_layout_top.addWidget(self.next_diff_button)
+        
+        button_layout_bottom = QHBoxLayout()
+    
         self.page_label = QLabel("Rechercher le texte :")
         self.page_entry = QLineEdit()
         self.page_entry.setPlaceholderText("Texte à rechercher")
         self.go_to_page_button = QPushButton("Rechercher")
         self.go_to_page_button.clicked.connect(self.goToText)
-
-        # Ajoutez ces widgets à votre layout de boutons
-        button_layout.addWidget(self.page_label)
-        button_layout.addWidget(self.page_entry)
-        button_layout.addWidget(self.go_to_page_button)
-
-        left_layout.addLayout(button_layout)
     
-        button_layout.addWidget(self.previous_diff_button)
-        button_layout.addWidget(self.next_diff_button)
-        left_layout.addLayout(button_layout)
+        button_layout_bottom.addWidget(self.page_label)
+        button_layout_bottom.addWidget(self.page_entry)
+        button_layout_bottom.addWidget(self.go_to_page_button)
     
+        # Ajout des nouveaux boutons "+" et "-"
+        self.next_result_button = QPushButton("+")
+        self.next_result_button.clicked.connect(self.showNextResult)
+        self.previous_result_button = QPushButton("-")
+        self.previous_result_button.clicked.connect(self.showPreviousResult)
+    
+        button_layout_bottom.addWidget(self.previous_result_button)
+        button_layout_bottom.addWidget(self.next_result_button)
+    
+        # Ajout du label pour afficher les informations sur les résultats
+        self.result_label = QLabel("")
+        button_layout_bottom.addWidget(self.result_label)
+    
+        # Ajout du nouveau layout 'bottom' pour les boutons
+        button_layout = QVBoxLayout()
+        button_layout.addLayout(button_layout_top)
+        button_layout.addLayout(button_layout_bottom)
+    
+        left_layout.addLayout(button_layout)
+
         left_widget = QWidget()
         left_widget.setLayout(left_layout)
-    
+        
         # Zone de droite (zone d'annotation)
         right_layout = QVBoxLayout()
     
-        # setFixedWidth pour définir la largeur de la zone de droite
         right_widget = QWidget()
         right_widget.setFixedWidth(350)
     
-        # Crée un QListWidget pour afficher les annotations à droite
         self.annotation_list = QListWidget()
-        self.annotation_list.setMaximumWidth(350)  # Définissez la largeur maximale
-        self.annotation_list.setWordWrap(True)  # Activez le retour à la ligne
+        self.annotation_list.setMaximumWidth(350)
+        self.annotation_list.setWordWrap(True)
         right_layout.addWidget(self.annotation_list)
     
         right_widget.setLayout(right_layout)
@@ -328,7 +347,6 @@ class PDFComparerApp(QMainWindow):
             # Effacez d'abord le contenu précédent de la liste
             self.annotation_list.clear()
 
-            
             for page_num, annotations_on_page in old_pdf_annotations.items():
                 for i, annot_info in enumerate(annotations_on_page):
                     item_text = f"Page {page_num} - Annotation {i + 1}:\nType: {annot_info['type']}"
@@ -351,7 +369,7 @@ class PDFComparerApp(QMainWindow):
                     layout.addWidget(text_label)
                     widget = QWidget()
                     widget.setLayout(layout)
-                    item.setSizeHint(QSize(300, widget.sizeHint().height() + 10))
+                    item.setSizeHint(QSize(300, text_label.sizeHint().height() + 100))
                     self.annotation_list.addItem(item)
                     self.annotation_list.setItemWidget(item, widget)
             
@@ -423,30 +441,80 @@ class PDFComparerApp(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "Erreur d'exportation", f"Une erreur s'est produite lors de l'exportation vers Excel : {str(e)}")
 
-    # Ajoutez cette fonction à votre classe PDFComparerApp
     def goToText(self):
         search_text = self.page_entry.text().strip()
-    
+
         if not search_text:
             QMessageBox.warning(self, "Texte invalide", "Veuillez entrer un texte à rechercher.")
             return
-    
-        found_rows = []
-        for i in range(self.table.rowCount()):
-            for j in range(self.table.columnCount()):
-                item = self.table.item(i, j)
-                if item and search_text.lower() in item.text().lower():
-                    found_rows.append(i)
-                    break  # Si trouvé dans cette ligne, passer à la suivante
-    
+
+        found_rows = self.findTextRows()
+        self.current_result_index = 0  # Réinitialise l'index avant d'appeler findTextRows()
+
         if found_rows:
             # Sélectionnez la première occurrence trouvée
             self.table.selectRow(found_rows[0])
-            # Optionnel : Faites défiler la vue vers la ligne sélectionnée
             self.table.scrollToItem(self.table.item(found_rows[0], 0))
-            if len(found_rows) > 1:
-                QMessageBox.information
+            self.current_result_index = 1
+            self.updateResultLabel()
+        else:
+            QMessageBox.information(self, "Aucun Résultat", "Aucun résultat trouvé pour le texte recherché.")
 
+    def showNextResult(self):
+        current_row = self.table.currentRow()
+        if current_row == -1:
+            current_row = 0
+
+        found_rows = self.findTextRows()
+        next_result = self.findNextResult(current_row, found_rows)
+        self.navigateToResult(next_result, found_rows)
+
+    def showPreviousResult(self):
+        current_row = self.table.currentRow()
+        if current_row == -1:
+            current_row = 0
+
+        found_rows = self.findTextRows()
+        previous_result = self.findPreviousResult(current_row, found_rows)
+        self.navigateToResult(previous_result, found_rows)
+        
+    def findTextRows(self):
+        search_text = self.page_entry.text().strip().lower()
+        found_rows = []
+
+        for i in range(self.table.rowCount()):
+            for j in range(self.table.columnCount()):
+                item = self.table.item(i, j)
+                if item and search_text in item.text().lower():
+                    found_rows.append(i)
+                    break  # Si trouvé dans cette ligne, passer à la suivante
+
+        return found_rows
+
+    def findNextResult(self, current_row, found_rows):
+        for row in found_rows:
+            if row > current_row:
+                return row
+        return found_rows[0] if found_rows else -1
+
+    def findPreviousResult(self, current_row, found_rows):
+        for row in reversed(found_rows):
+            if row < current_row:
+                return row
+        return found_rows[-1] if found_rows else -1
+
+    def navigateToResult(self, result_row, found_rows):
+        if result_row != -1:
+            self.table.selectRow(result_row)
+            self.table.scrollToItem(self.table.item(result_row, 0))
+            self.current_result_index = found_rows.index(result_row) + 1
+            self.updateResultLabel()
+        else:
+            QMessageBox.information(self, "Aucun Résultat", "Aucun résultat trouvé pour le texte recherché.")
+            
+    def updateResultLabel(self):
+        total_results = len(self.findTextRows())
+        self.result_label.setText(f"Résultat {self.current_result_index}/{total_results}")
 
     def showInstructions(self):
         instructions = (
@@ -473,14 +541,14 @@ class PDFComparerApp(QMainWindow):
                 Elle devient alors <span style="color: limegreen; font-weight: bold;">verte</span>.
                 <br>
                 <br>
-                Version du 13/11/2023
+                Version du 14/11/2023
             </p>
             </body>
             </html>
             """
         )
     
-        help_box = QMessageBox()
+        help_box = QMessageBox() 
         help_box.setWindowTitle("Instructions d'utilisation")
         help_box.setTextFormat(Qt.RichText)
         help_box.setText(instructions)
