@@ -1,4 +1,4 @@
-# VERSION 5 - 14/11/2023
+# VERSION 5 - 16/11/2023
 # Cette application PyQt permet de comparer le contenu de deux fichiers PDF sélectionnés par l'utilisateur. Elle affiche les différences entre les
 # fichiers ligne par ligne dans un tableau et met en évidence les modifications avec des couleurs. 
 # Rouge : suppression
@@ -11,7 +11,7 @@
 # Suppression et Ajout de fonds : possible - Pas Commencé
 
 import sys
-import PyPDF2
+import PyPDF2 
 import fitz
 import pandas as pd
 from openpyxl import Workbook
@@ -132,8 +132,10 @@ class PDFComparerApp(QMainWindow):
     
         # Ajout des nouveaux boutons "+" et "-"
         self.next_result_button = QPushButton("+")
+        self.next_result_button.setMaximumWidth(20)
         self.next_result_button.clicked.connect(self.showNextResult)
         self.previous_result_button = QPushButton("-")
+        self.previous_result_button.setMaximumWidth(20)
         self.previous_result_button.clicked.connect(self.showPreviousResult)
     
         button_layout_bottom.addWidget(self.previous_result_button)
@@ -296,7 +298,7 @@ class PDFComparerApp(QMainWindow):
             if self.current_difference_index >= 0:
                 self.table.selectRow(self.current_difference_index)
 
-    def extraire_commentaires(self, pdf_file):
+    def extraire_commentaires(self, pdf_file): 
         doc = fitz.open(pdf_file)
         annotations_dict = {}  # Dictionnaire pour stocker les annotations
 
@@ -369,7 +371,7 @@ class PDFComparerApp(QMainWindow):
                     layout.addWidget(text_label)
                     widget = QWidget()
                     widget.setLayout(layout)
-                    item.setSizeHint(QSize(300, text_label.sizeHint().height() + 100))
+                    item.setSizeHint(QSize(300, text_label.sizeHint().height() + 80))
                     self.annotation_list.addItem(item)
                     self.annotation_list.setItemWidget(item, widget)
             
@@ -440,7 +442,7 @@ class PDFComparerApp(QMainWindow):
                 QMessageBox.information(self, "Export Excel", f"Résultats exportés avec succès vers {excel_filename}")
             except Exception as e:
                 QMessageBox.critical(self, "Erreur d'exportation", f"Une erreur s'est produite lors de l'exportation vers Excel : {str(e)}")
-
+ 
     def goToText(self):
         search_text = self.page_entry.text().strip()
 
@@ -506,7 +508,7 @@ class PDFComparerApp(QMainWindow):
     def navigateToResult(self, result_row, found_rows):
         if result_row != -1:
             self.table.selectRow(result_row)
-            self.table.scrollToItem(self.table.item(result_row, 0))
+            self.table.scrollToItem(self.table.item(result_row, 0)) 
             self.current_result_index = found_rows.index(result_row) + 1
             self.updateResultLabel()
         else:
@@ -514,7 +516,7 @@ class PDFComparerApp(QMainWindow):
             
     def updateResultLabel(self):
         total_results = len(self.findTextRows())
-        self.result_label.setText(f"Résultat {self.current_result_index}/{total_results}")
+        self.result_label.setText(f"{self.current_result_index}/{total_results}")
 
     def showInstructions(self):
         instructions = (
@@ -535,13 +537,20 @@ class PDFComparerApp(QMainWindow):
             </ol>
             <p>
                 Utilisez les boutons "Différence précédente" et "Différence suivante" pour naviguer entre les différences mises en évidence.<br>
-                <br>
+                <br> 
                 L'onglet de droite affiche les annotations. Grâce au tableau de comparaison, vous pouvez alors voir si les différences sont liées aux annotations ou non. 
                 Si c'est le cas, vous pouvez indiquer que l'annotation est bien prise en compte en la cochant. 
                 Elle devient alors <span style="color: limegreen; font-weight: bold;">verte</span>.
                 <br>
                 <br>
-                Version du 14/11/2023
+                Utilisez la zone de recherche pour rechercher du texte dans les deux tableaux.
+                Les boutons "+" et "-" permettent de naviguer entre les résultats de la recherche.<br>
+                <br>
+                Cliquez sur le bouton "Exporter vers Excel" pour exporter les résultats du tableau vers un fichier Excel.
+                <br>
+                <br>
+                Version du 16
+                /11/2023
             </p>
             </body>
             </html>
